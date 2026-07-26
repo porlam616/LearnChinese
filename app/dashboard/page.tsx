@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import ProgressBar from '@/components/ProgressBar';
 import ResetButton from '@/components/ResetButton';
-import type { LevelSummary } from '@/lib/types';
+import CharacterPanel from '@/components/CharacterPanel';
+import type { LevelSummary, ShopItem } from '@/lib/types';
 
 const LEVEL_LABELS: Record<string, string> = {
   L1: 'L1 基礎',
@@ -16,13 +18,26 @@ const LEVEL_LABELS: Record<string, string> = {
 
 export default function DashboardPage() {
   const [summary, setSummary] = useState<LevelSummary[]>([]);
+  const [balance, setBalance] = useState(0);
+  const [equipped, setEquipped] = useState<ShopItem[]>([]);
+  const [userName, setUserName] = useState('');
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   async function load() {
     setLoading(true);
-    const res = await fetch('/api/progress-summary');
-    const data = await res.json();
-    setSummary(data.summary ?? []);
+    const [progressRes, shopRes, meRes] = await Promise.all([
+      fetch('/api/progress-summary'),
+      fetch('/api/shop'),
+      fetch('/api/me'),
+    ]);
+    const progressData = await progressRes.json();
+    const shopData = await shopRes.json();
+    const meData = await meRes.json();
+    setSummary(progressData.summary ?? []);
+    setBalance(shopData.balance ?? 0);
+    setEquipped((shopData.items ?? []).filter((i: ShopItem) => i.equipped));
+    setUserName(meData.name ?? '');
     setLoading(false);
   }
 
@@ -31,10 +46,23 @@ export default function DashboardPage() {
     void load();
   }, []);
 
+  async function handleLogout() {
+    await fetch('/api/logout', { method: 'POST' });
+    router.push('/login');
+  }
+
   return (
     <main className="min-h-screen bg-neutral-50 py-10 px-4">
       <div className="max-w-md mx-auto flex flex-col gap-6">
-        <h1 className="text-2xl font-semibold">中文詞彙學習</h1>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold">中文詞彙學習</h1>
+            {userName && <p className="text-sm text-neutral-500">你好，{userName}</p>}
+          </div>
+          <button onClick={handleLogout} className="text-sm text-neutral-500 underline">
+            登出
+          </button>
+        </div>
 
         <Link
           href="/practice"
@@ -42,6 +70,8 @@ export default function DashboardPage() {
         >
           開始練習
         </Link>
+
+        {!loading && <CharacterPanel balance={balance} equipped={equipped} />}
 
         <section className="flex flex-col gap-4">
           <h2 className="text-sm font-medium text-neutral-500">各難度進度</h2>

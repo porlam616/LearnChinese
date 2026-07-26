@@ -36,3 +36,22 @@ export interface LevelSummary {
   reading_reviewed: number;
   writing_reviewed: number;
 }
+
+export type ItemCategory = '武器' | '工具' | '防具' | '裝飾';
+
+export interface ShopItem {
+  id: number;
+  name_zh: string;
+  name_en: string;
+  category: ItemCategory;
+  price: number;
+  owned: boolean;
+  equipped: boolean;
+}
+
+export interface CharacterState {
+  balance: number;
+  earned: number;
+  spent: number;
+  equipped: ShopItem[];
+}

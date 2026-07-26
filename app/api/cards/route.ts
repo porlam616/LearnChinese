@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { getSessionUserId } from '@/lib/session';
 import type { PracticeMode } from '@/lib/types';
 
 export async function GET(req: NextRequest) {
+  const userId = await getSessionUserId();
+  if (!userId) {
+    return NextResponse.json({ error: 'Not logged in' }, { status: 401 });
+  }
+
   const { searchParams } = new URL(req.url);
   const level = searchParams.get('level'); // 'L1'..'L5' or null for all
   const category = searchParams.get('category'); // null for all
@@ -14,19 +20,18 @@ export async function GET(req: NextRequest) {
     .from('chinese_vocab_cards')
     .select(
       `id, word, pinyin, meaning_en, level, category, cky_mandatory,
-       chinese_card_progress ( id, box_reading, next_review_reading,
+       chinese_card_progress!inner ( id, box_reading, next_review_reading,
                                box_writing, next_review_writing,
                                times_correct, times_incorrect,
-                               last_reviewed_at, updated_at )`
-    );
+                               last_reviewed_at, updated_at, user_id )`
+    )
+    .eq('chinese_card_progress.user_id', userId);
 
   if (level) query = query.eq('level', level);
   if (category) query = query.eq('category', category);
   if (mandatoryOnly) query = query.eq('cky_mandatory', true);
 
-  // No artificial cap: fetch every matching row. Supabase's default page
-  // size is 1000, so explicitly widen the range to cover the full list
-  // (3,132 words currently).
+  // No artificial cap: fetch every matching row.
   const { data, error } = await query.range(0, 9999);
 
   if (error) {

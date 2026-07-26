@@ -1,15 +1,22 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { getSessionUserId } from '@/lib/session';
 import type { Level, LevelSummary } from '@/lib/types';
 
 const LEVELS: Level[] = ['L1', 'L2', 'L3', 'L4', 'L5'];
 
 export async function GET() {
+  const userId = await getSessionUserId();
+  if (!userId) {
+    return NextResponse.json({ error: 'Not logged in' }, { status: 401 });
+  }
+
   const { data, error } = await supabase
     .from('chinese_vocab_cards')
     .select(
-      `level, chinese_card_progress ( box_reading, box_writing, times_correct, times_incorrect )`
+      `level, chinese_card_progress!inner ( box_reading, box_writing, times_correct, times_incorrect, user_id )`
     )
+    .eq('chinese_card_progress.user_id', userId)
     .range(0, 9999);
 
   if (error) {
@@ -50,8 +57,6 @@ export async function GET() {
       if (boxWriting > 1) writingReviewed += 1;
     }
 
-    // One decimal place so small sessions still show movement instead of
-    // rounding away to 0% across a 500+ word level.
     const readingPct = total > 0 ? ((readingSum / total - 1) / 4) * 100 : 0;
     const writingPct = total > 0 ? ((writingSum / total - 1) / 4) * 100 : 0;
 

@@ -18,7 +18,7 @@ export default function ResetButton({ onReset }: { onReset: () => void }) {
     return (
       <div className="border border-red-200 bg-red-50 rounded-lg p-4 flex flex-col gap-3">
         <p className="text-sm text-red-700">
-          確定要重設所有進度嗎？這會將全部詞語的閱讀和拼寫進度歸零，無法復原。
+          確定要重設所有進度嗎？這會將全部詞語的閱讀和拼寫進度歸零，並清空商店中已購買的裝備和金幣，無法復原。
         </p>
         <div className="grid grid-cols-2 gap-3">
           <button

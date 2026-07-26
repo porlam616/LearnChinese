@@ -1,24 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { supabase } from '@/lib/supabase';
+import { SESSION_COOKIE_NAME } from '@/lib/session';
 
-// Simple PIN check, mirroring LearnFrench's auth approach.
-// The PIN itself lives only in an env var (APP_PIN), never in the repo.
 export async function POST(req: NextRequest) {
   const { pin } = await req.json();
-  const correctPin = process.env.APP_PIN;
 
-  if (!correctPin) {
-    return NextResponse.json(
-      { error: 'Server misconfigured: APP_PIN not set' },
-      { status: 500 }
-    );
+  const { data: user, error } = await supabase
+    .from('chinese_users')
+    .select('id, name')
+    .eq('pin', pin)
+    .maybeSingle();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  if (pin !== correctPin) {
+  if (!user) {
     return NextResponse.json({ error: 'Invalid PIN' }, { status: 401 });
   }
 
-  const res = NextResponse.json({ ok: true });
-  res.cookies.set('lc_session', 'authenticated', {
+  const res = NextResponse.json({ ok: true, name: user.name });
+  res.cookies.set(SESSION_COOKIE_NAME, String(user.id), {
     httpOnly: true,
     secure: true,
     sameSite: 'lax',

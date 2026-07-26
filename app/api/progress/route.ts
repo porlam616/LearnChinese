@@ -2,19 +2,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { nextBoxState } from '@/lib/leitner';
 import { isToneMatchIgnoringTones } from '@/lib/pinyin';
+import { getSessionUserId } from '@/lib/session';
 import type { PracticeMode } from '@/lib/types';
 
 interface ProgressBody {
   card_id: number;
   mode: PracticeMode;
-  // reading mode: Theo self-rates after seeing the answer
   selfRatedCorrect?: boolean;
-  // writing mode: Theo typed a pinyin answer, checked toneless server-side
   typedAnswer?: string;
   session_id?: number | null;
 }
 
 export async function POST(req: NextRequest) {
+  const userId = await getSessionUserId();
+  if (!userId) {
+    return NextResponse.json({ error: 'Not logged in' }, { status: 401 });
+  }
+
   const body: ProgressBody = await req.json();
   const { card_id, mode, selfRatedCorrect, typedAnswer, session_id } = body;
 
@@ -48,6 +52,7 @@ export async function POST(req: NextRequest) {
     .from('chinese_card_progress')
     .select('*')
     .eq('card_id', card_id)
+    .eq('user_id', userId)
     .single();
 
   if (progressError || !progress) {
@@ -69,7 +74,8 @@ export async function POST(req: NextRequest) {
       times_correct: wasCorrect ? progress.times_correct + 1 : progress.times_correct,
       times_incorrect: wasCorrect ? progress.times_incorrect : progress.times_incorrect + 1,
     })
-    .eq('card_id', card_id);
+    .eq('card_id', card_id)
+    .eq('user_id', userId);
 
   if (updateError) {
     return NextResponse.json({ error: updateError.message }, { status: 500 });
@@ -83,6 +89,7 @@ export async function POST(req: NextRequest) {
     typed_answer: mode === 'writing' ? typedAnswer : null,
     box_before: currentBox,
     box_after: leitner_box,
+    user_id: userId,
   });
 
   return NextResponse.json({

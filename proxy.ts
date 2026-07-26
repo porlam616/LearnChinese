@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export function proxy(req: NextRequest) {
-  const isLoggedIn = req.cookies.get('lc_session')?.value === 'authenticated';
+  const sessionValue = req.cookies.get('lc_session')?.value;
+  const isLoggedIn = !!sessionValue && Number.isFinite(Number(sessionValue));
   const { pathname } = req.nextUrl;
 
   const isPublic = pathname === '/login' || pathname.startsWith('/api/login');
